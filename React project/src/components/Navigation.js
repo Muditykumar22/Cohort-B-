@@ -1,17 +1,20 @@
 import React from 'react';
-import { NavLink, useNavigate} from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-const Navigation = ()=> {
-    const { user, logout} = useAuth();
-    const { isDark, toggleTheme} = useTheme();
-    const navigate = useNavigate();
-    const handleLogout = ()=> {
-        logout();
-        navigate('/');
-    };
-    return (
-    <nav className="navigation">  
+
+const Navigation = () => {
+  const { user, logout } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
+  return (
+    <nav className="navigation">
       <div className="nav-brand">
         <h2>React Demo</h2>
       </div>
@@ -37,8 +40,7 @@ const Navigation = ()=> {
         </div>
       </div>
     </nav>
-    );
+  );
 };
+
 export default Navigation;
-
-
