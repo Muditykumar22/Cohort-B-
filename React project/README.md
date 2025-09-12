@@ -81,7 +81,7 @@ src/
 
 ```bash
 npm install
-npm start
+npm run dev            # frontend at http://localhost:5173
 ```
 
 ## 📖 For Students

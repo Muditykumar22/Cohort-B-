@@ -7,11 +7,46 @@ const Login = () => {
     email: ''
   });
   const { login } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const API_BASE = 'http://localhost:4000';
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (formData.name && formData.email) {
-      login(formData);
+    if (!(formData.name && formData.email)) return;
+    setLoading(true);
+    setError('');
+    try {
+      // Try login; if not registered, auto-register then login
+      const loginRes = await fetch(`${API_BASE}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email, password: 'password123' })
+      });
+      let authData;
+      if (loginRes.ok) {
+        authData = await loginRes.json();
+      } else {
+        const regRes = await fetch(`${API_BASE}/api/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: formData.name, email: formData.email, password: 'password123' })
+        });
+        if (!regRes.ok) throw new Error('Registration failed');
+        const loginRes2 = await fetch(`${API_BASE}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: formData.email, password: 'password123' })
+        });
+        if (!loginRes2.ok) throw new Error('Login failed');
+        authData = await loginRes2.json();
+      }
+      // Persist token + hardcoded user identity
+      login({ id: 'mudity', name: 'mudity', email: 'muditykumar414@gmail.com', token: authData.token });
+    } catch (err) {
+      setError(err.message || 'Authentication error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -55,9 +90,10 @@ const Login = () => {
             />
           </div>
           
-          <button type="submit" className="login-btn">
+          <button type="submit" className="login-btn" disabled={loading}>
             Login
           </button>
+          {error && <p className="error">{error}</p>}
         </form>
       </div>
     </div>

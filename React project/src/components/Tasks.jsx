@@ -1,25 +1,34 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useAuth } from '../contexts/AuthContext';
 
 const Tasks = () => {
   const [tasks, setTasks] = useState([]);
   const [newTask, setNewTask] = useState('');
   const [filter, setFilter] = useState('all');
-  const [storedTasks, setStoredTasks] = useLocalStorage('tasks', []);
+  const { user } = useAuth();
+  const API_BASE = 'http://localhost:4000';
 
-  // Load tasks from localStorage only once on component mount
+  // Load tasks from backend when user changes
   useEffect(() => {
-    if (storedTasks.length > 0) {
-      setTasks(storedTasks);
+    if (!user?.token) {
+      setTasks([]);
+      return;
     }
-  }, []); // Empty dependency array - only run once
-
-  // Save tasks to localStorage whenever they change
-  useEffect(() => {
-    if (tasks.length > 0 || storedTasks.length > 0) {
-      setStoredTasks(tasks);
-    }
-  }, [tasks, setStoredTasks]);
+    let isMounted = true;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/tasks`, {
+          headers: { Authorization: `Bearer ${user.token}` }
+        });
+        if (!res.ok) throw new Error('Failed to load tasks');
+        const data = await res.json();
+        if (isMounted) setTasks(data);
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+    return () => { isMounted = false; };
+  }, [user]);
 
   // Memoized filtered tasks
   const filteredTasks = useMemo(() => {
@@ -42,37 +51,54 @@ const Tasks = () => {
   }, [tasks]);
 
   // Memoized handlers
-  const addTask = useCallback((e) => {
+  const addTask = useCallback(async (e) => {
     e.preventDefault();
-    if (newTask.trim()) {
-      const task = {
-        id: Date.now(),
-        title: newTask.trim(),
-        completed: false,
-        createdAt: new Date().toISOString()
-      };
-      setTasks(prev => [task, ...prev]);
-      setNewTask('');
-    }
-  }, [newTask]);
+    if (!newTask.trim() || !user?.token) return;
+    const res = await fetch(`${API_BASE}/api/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.token}` },
+      body: JSON.stringify({ title: newTask.trim() })
+    });
+    if (!res.ok) return;
+    const created = await res.json();
+    setTasks(prev => [created, ...prev]);
+    setNewTask('');
+  }, [newTask, user]);
 
-  const toggleTask = useCallback((id) => {
-    setTasks(prev => prev.map(task =>
-      task.id === id ? { ...task, completed: !task.completed } : task
-    ));
-  }, []);
+  const toggleTask = useCallback(async (id) => {
+    const current = tasks.find(t => t._id === id);
+    if (!current || !user?.token) return;
+    const res = await fetch(`${API_BASE}/api/tasks/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.token}` },
+      body: JSON.stringify({ completed: !current.completed })
+    });
+    if (!res.ok) return;
+    const updated = await res.json();
+    setTasks(prev => prev.map(t => t._id === id ? updated : t));
+  }, [tasks, user]);
 
-  const deleteTask = useCallback((id) => {
-    setTasks(prev => prev.filter(task => task.id !== id));
-  }, []);
+  const deleteTask = useCallback(async (id) => {
+    if (!user?.token) return;
+    const res = await fetch(`${API_BASE}/api/tasks/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${user.token}` }
+    });
+    if (!res.ok) return;
+    setTasks(prev => prev.filter(task => task._id !== id));
+  }, [user]);
 
-  const updateTask = useCallback((id, updates) => {
-    if (updates.title && updates.title.trim()) {
-      setTasks(prev => prev.map(task =>
-        task.id === id ? { ...task, ...updates } : task
-      ));
-    }
-  }, []);
+  const updateTask = useCallback(async (id, updates) => {
+    if (!(updates.title && updates.title.trim()) || !user?.token) return;
+    const res = await fetch(`${API_BASE}/api/tasks/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.token}` },
+      body: JSON.stringify({ title: updates.title.trim() })
+    });
+    if (!res.ok) return;
+    const updated = await res.json();
+    setTasks(prev => prev.map(task => task._id === id ? updated : task));
+  }, [user]);
 
   return (
     <div className="tasks">
@@ -130,11 +156,11 @@ const Tasks = () => {
           <p className="no-tasks">No tasks found.</p>
         ) : (
           filteredTasks.map(task => (
-            <div key={task.id} className={`task-item ${task.completed ? 'completed' : ''}`}>
+            <div key={task._id} className={`task-item ${task.completed ? 'completed' : ''}`}>
               <input
                 type="checkbox"
                 checked={task.completed}
-                onChange={() => toggleTask(task.id)}
+                onChange={() => toggleTask(task._id)}
                 className="task-checkbox"
               />
               <span className="task-title">{task.title}</span>
@@ -143,7 +169,7 @@ const Tasks = () => {
                   onClick={() => {
                     const newTitle = prompt('Edit task:', task.title);
                     if (newTitle && newTitle.trim()) {
-                      updateTask(task.id, { title: newTitle.trim() });
+                      updateTask(task._id, { title: newTitle.trim() });
                     }
                   }}
                   className="edit-btn"
@@ -151,7 +177,7 @@ const Tasks = () => {
                  editTask
                 </button>
                 <button
-                  onClick={() => deleteTask(task.id)}
+                  onClick={() => deleteTask(task._id)}
                   className="delete-btn"
                 >
                   deleteTask

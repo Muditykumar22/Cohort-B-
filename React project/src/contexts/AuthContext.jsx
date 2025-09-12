@@ -30,6 +30,7 @@ export const AuthProvider = ({ children }) => {
   }, [storedUser]);
 
   const login = (userData) => {
+    // userData should include at least { id, name, email, token }
     setStoredUser(userData);
     dispatch({ type: 'LOGIN', payload: userData });
   };
