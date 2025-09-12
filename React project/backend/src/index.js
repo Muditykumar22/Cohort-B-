@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 require('dotenv').config();
+=======
+>>>>>>> 544d47a4b4540a8a508aa8e7a7279a6d0c46be10
 const path = require('path');
 const express = require('express');
 const cors = require('cors');
@@ -41,6 +44,10 @@ connectDB(MONGODB_URI)
   .catch((err) => {
     console.error('DB connection error', err);
     process.exit(1);
+<<<<<<< HEAD
   });
 
 
+=======
+  });
+>>>>>>> 544d47a4b4540a8a508aa8e7a7279a6d0c46be10
